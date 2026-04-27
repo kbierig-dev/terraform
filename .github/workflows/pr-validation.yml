@@ -1,0 +1,68 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    name: Terraform Format and Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.6.0"
+
+      - name: Terraform Format
+        run: terraform fmt -check -recursive
+        
+      - name: Terraform Init
+        run: terraform init -backend=false
+        working-directory: environments/dev
+        
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: environments/dev
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+
+  native-test:
+    name: Terraform Native Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.6.0"
+          
+      - name: Run Native Module Tests
+        run: make test-native
+
+  # NOTE: Terratest execution is typically more complex because it creates real infrastructure.
+  # You would need AWS credentials mapped as secrets here (e.g. via OIDC). 
+  # terratest:
+  #   name: Terratest Integration
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-go@v5
+  #       with:
+  #         go-version: '1.21'
+  #     - name: Run Terratest
+  #       env:
+  #         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #       run: make test-go
