@@ -9,3 +9,28 @@ variable "environment_identifier" {
   type        = string
   default     = "001"
 }
+
+# Sensitive Variables - These should be provided via terraform.tfvars
+variable "target_url" {
+  description = "The target API URL for the checker"
+  type        = string
+  sensitive   = true
+}
+
+variable "target_app_id" {
+  description = "Target App ID"
+  type        = string
+  sensitive   = true
+}
+
+variable "target_sub_id" {
+  description = "Target Sub ID"
+  type        = string
+  sensitive   = true
+}
+
+variable "alert_phone_number" {
+  description = "Phone number for SNS alerts"
+  type        = string
+  sensitive   = true
+}
