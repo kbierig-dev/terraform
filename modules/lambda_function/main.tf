@@ -37,21 +37,33 @@ resource "aws_iam_role_policy" "sns_publish" {
 }
 
 resource "aws_lambda_function" "this" {
-  # Use S3 instead of local filename
   s3_bucket = var.s3_bucket
   s3_key    = var.s3_key
+  
+  s3_object_version = var.s3_object_version
 
   function_name = var.function_name
   role          = aws_iam_role.lambda_role.arn
   handler       = var.handler
   runtime       = "python3.12"
   timeout       = 30
+  
+  publish = true
 
   environment {
     variables = var.environment_variables
   }
 }
 
+# Create an Alias for the Lambda
+resource "aws_lambda_alias" "this" {
+  count            = var.alias_name != null ? 1 : 0
+  name             = var.alias_name
+  function_name    = aws_lambda_function.this.function_name
+  function_version = aws_lambda_function.this.version
+}
+
+# CloudWatch Log Group
 resource "aws_cloudwatch_log_group" "this" {
   name              = "/aws/lambda/${var.function_name}"
   retention_in_days = 7
@@ -67,16 +79,34 @@ variable "handler" {
 }
 
 variable "s3_bucket" {
-  description = "The S3 bucket containing the lambda zip"
-  type        = string
+  type = string
 }
 
 variable "s3_key" {
-  description = "The S3 key (path) to the lambda zip"
+  type = string
+}
+
+variable "s3_object_version" {
+  description = "The version of the S3 object to deploy"
   type        = string
+  default     = null
+}
+
+variable "alias_name" {
+  description = "The name of the Lambda alias (e.g. live, prod)"
+  type        = string
+  default     = null
 }
 
 variable "environment_variables" {
   type    = map(string)
   default = {}
+}
+
+output "function_arn" {
+  value = aws_lambda_function.this.arn
+}
+
+output "alias_arn" {
+  value = var.alias_name != null ? aws_lambda_alias.this[0].arn : null
 }
