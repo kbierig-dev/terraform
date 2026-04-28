@@ -17,6 +17,11 @@ terraform {
   }
 }
 
+moved {
+  from = module.s3_bucket
+  to   = module.deployment_bucket
+}
+
 provider "aws" {
   region = var.aws_region
 
@@ -29,21 +34,21 @@ provider "aws" {
   }
 }
 
-# Example of consuming a local module
-module "s3_bucket" {
+# Core S3 bucket for deployments
+module "deployment_bucket" {
   source = "../../modules/example_module"
 
   bucket_name = "example-dev-bucket-${var.environment_identifier}"
   environment = "dev"
 }
 
+# In-Stock Checker Lambda
 module "in_stock_lambda" {
   source = "../../modules/lambda_function"
 
   function_name = "in-stock-checker-dev"
   
-  # Pointing to the bucket we created earlier
-  s3_bucket = module.s3_bucket.bucket_name
+  s3_bucket = module.deployment_bucket.bucket_name
   s3_key    = "deployments/in-stock.zip"
   
   handler   = "main.lambda_handler"
@@ -55,4 +60,26 @@ module "in_stock_lambda" {
     PHONE_NUMBER = var.alert_phone_number
     ENVIRONMENT  = "dev"
   }
+}
+
+# Setup OIDC for GitHub Actions (Secure CI/CD)
+module "github_oidc" {
+  source = "../../modules/github_oidc"
+}
+
+# --- Outputs ---
+
+output "github_actions_role_arn" {
+  value       = module.github_oidc.role_arn
+  description = "Paste this into GitHub Secrets as AWS_ROLE_ARN"
+}
+
+output "deployment_bucket_name" {
+  value       = module.deployment_bucket.bucket_name
+  description = "The S3 bucket where Lambda zips should be uploaded"
+}
+
+output "lambda_function_name" {
+  value       = "in-stock-checker-dev"
+  description = "The name of the deployed Lambda function"
 }
